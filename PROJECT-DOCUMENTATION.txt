@@ -1,0 +1,708 @@
+================================================================================
+                    SECURE TASK MANAGEMENT SYSTEM
+                         PROJECT DOCUMENTATION
+================================================================================
+
+Project Name: Secure Task Management System
+Repository ID: vrajareddy-f2ce41a6-d3e4-4fb0-b1a9-c0fa91d6ecbc
+Author: Venkata Raja Reddy
+Version: 1.0.0
+
+================================================================================
+                           TABLE OF CONTENTS
+================================================================================
+
+PART 1: PROJECT OVERVIEW
+PART 2: TECHNOLOGY STACK
+PART 3: DATA MODEL
+PART 4: SETUP INSTRUCTIONS
+PART 5: RUNNING THE APPLICATION
+PART 6: TESTING THE APPLICATION
+PART 7: API REFERENCE
+PART 8: ACCESS CONTROL SYSTEM
+PART 9: SYSTEM ARCHITECTURE
+PART 10: SECURITY LAYERS
+PART 11: PROJECT STRUCTURE
+PART 12: TROUBLESHOOTING
+
+================================================================================
+                        PART 1: PROJECT OVERVIEW
+================================================================================
+
+This system allows users to manage tasks with secure role-based access control.
+Different users have different permissions based on their role and organization.
+
+KEY FEATURES:
+
+1. JWT Authentication
+   Secure login with JSON Web Tokens
+
+2. Role-Based Access Control
+   3-tier role hierarchy (OWNER > ADMIN > VIEWER)
+
+3. Organization Hierarchy
+   2-level organization structure (Parent to Child)
+
+4. Task Management
+   Create, edit, delete, and organize tasks
+
+5. Drag-and-Drop
+   Reorder tasks with drag-and-drop
+
+6. Audit Logging
+   Track all actions for security
+
+7. Dark Mode
+   Toggle between light and dark themes
+
+8. Responsive Design
+   Works on desktop and mobile
+
+================================================================================
+                        PART 2: TECHNOLOGY STACK
+================================================================================
+
+BACKEND (API):
+
+Technology          Purpose
+-----------         -------
+Node.js             JavaScript runtime
+NestJS              Backend framework
+TypeORM             Database ORM
+SQLite              Database (development)
+JWT                 Authentication tokens
+bcrypt              Password hashing
+
+FRONTEND (Dashboard):
+
+Technology          Purpose
+-----------         -------
+Angular 17          Frontend framework
+TailwindCSS         Styling
+Angular Signals     State management
+HTML5 DnD           Drag and drop
+
+SHARED LIBRARIES:
+
+Library             Purpose
+-------             -------
+@libs/data          Shared interfaces, DTOs, enums
+@libs/auth          Guards, decorators, strategies
+
+================================================================================
+                          PART 3: DATA MODEL
+================================================================================
+
+DATABASE SCHEMA
+---------------
+
+The system has 4 main tables:
+
+TABLE 1: ORGANIZATIONS
+----------------------
+Column Name          Type       Description
+-----------          ----       -----------
+organizationId       UUID       Primary Key (auto-generated)
+name                 VARCHAR    Organization name
+description          VARCHAR    Optional description
+parentId             UUID       Foreign Key to self (for hierarchy)
+createdAt            DATETIME   When created
+updatedAt            DATETIME   When modified
+
+TABLE 2: USERS
+--------------
+Column Name          Type       Description
+-----------          ----       -----------
+userId               UUID       Primary Key (auto-generated)
+email                VARCHAR    User's email (unique)
+password             VARCHAR    Hashed with bcrypt
+firstName            VARCHAR    User's first name
+lastName             VARCHAR    User's last name
+role                 VARCHAR    OWNER, ADMIN, or VIEWER
+organizationId       UUID       Foreign Key to organizations
+isActive             BOOLEAN    Soft delete flag
+createdAt            DATETIME   When created
+updatedAt            DATETIME   When modified
+
+TABLE 3: TASKS
+--------------
+Column Name          Type       Description
+-----------          ----       -----------
+taskId               UUID       Primary Key (auto-generated)
+title                VARCHAR    Task title
+description          TEXT       Task description
+status               VARCHAR    TODO, IN_PROGRESS, DONE
+priority             VARCHAR    LOW, MEDIUM, HIGH, URGENT
+category             VARCHAR    WORK, PERSONAL, SHOPPING, HEALTH, OTHER
+position             INTEGER    For drag-and-drop ordering
+dueDate              DATETIME   Optional due date
+userId               UUID       Foreign Key to users (task owner)
+organizationId       UUID       Foreign Key to organizations
+createdAt            DATETIME   When created
+updatedAt            DATETIME   When modified
+
+TABLE 4: AUDIT_LOGS
+-------------------
+Column Name          Type       Description
+-----------          ----       -----------
+auditLogId           UUID       Primary Key (auto-generated)
+action               VARCHAR    LOGIN, TASK_CREATED, etc.
+resource             VARCHAR    task, user, organization
+resourceId           UUID       Affected resource ID
+userId               UUID       Foreign Key to users
+userEmail            VARCHAR    Email (for quick display)
+organizationId       UUID       Foreign Key to organizations
+details              TEXT       JSON data as text string
+ipAddress            VARCHAR    Client IP address
+userAgent            VARCHAR    Browser information
+success              BOOLEAN    Action success flag
+errorMessage         VARCHAR    Error message if failed
+createdAt            DATETIME   When action occurred
+
+FOREIGN KEY RELATIONSHIPS
+-------------------------
+
+Table            Foreign Key        References                  Relationship
+-----            -----------        ----------                  ------------
+organizations    parentId           organizations.organizationId Self-reference
+users            organizationId     organizations.organizationId User belongs to org
+tasks            userId             users.userId                 Task belongs to user
+tasks            organizationId     organizations.organizationId Task belongs to org
+audit_logs       userId             users.userId                 Log entry for user
+audit_logs       organizationId     organizations.organizationId Log entry scope
+
+ORGANIZATION HIERARCHY
+----------------------
+
+TechCorp (Parent - Level 0)
+    |
+    +-- Engineering Department (Child - Level 1)
+    |
+    +-- Marketing Department (Child - Level 1)
+
+RULES:
+- Maximum 2 levels (Parent to Child)
+- Parent org users can access child org data
+- Child org users cannot access parent org data
+- Sibling orgs (Engineering and Marketing) cannot access each other's data
+
+================================================================================
+                      PART 4: SETUP INSTRUCTIONS
+================================================================================
+
+PREREQUISITES
+-------------
+
+You need to install these on your computer:
+
+Software        Version         Download Link
+--------        -------         -------------
+Node.js         18+ LTS         https://nodejs.org
+npm             9+              (Included with Node.js)
+
+STEP 1: Verify Node.js Installation
+-----------------------------------
+
+Open Command Prompt (Windows) or Terminal (Mac/Linux) and run:
+
+    node --version
+    (Should show: v18.x.x or higher)
+
+    npm --version
+    (Should show: 9.x.x or higher)
+
+STEP 2: Extract the Project
+---------------------------
+
+1. Download and extract the ZIP file
+2. You should have a folder named: vrajareddy-f2ce41a6-d3e4-4fb0-b1a9-c0fa91d6ecbc
+
+STEP 3: Open Terminal in Project Folder
+---------------------------------------
+
+WINDOWS:
+1. Open the project folder in File Explorer
+2. Click in the address bar
+3. Type "cmd" and press Enter
+
+MAC/LINUX:
+    cd /path/to/vrajareddy-f2ce41a6-d3e4-4fb0-b1a9-c0fa91d6ecbc
+
+STEP 4: Install Dependencies
+----------------------------
+
+Run this command:
+
+    npm install
+
+This downloads all required packages. Wait 2-5 minutes.
+
+STEP 5: Create Database with Demo Data
+--------------------------------------
+
+Run this command:
+
+    npm run seed
+
+This creates the database and adds sample data.
+
+================================================================================
+                    PART 5: RUNNING THE APPLICATION
+================================================================================
+
+You need to run TWO servers: Backend (API) and Frontend (Dashboard).
+
+TERMINAL 1: Start Backend
+-------------------------
+
+    npm run start:api
+
+Wait until you see:
+    Server is running on http://localhost:3000
+
+Keep this terminal open!
+
+TERMINAL 2: Start Frontend
+--------------------------
+
+Open a NEW terminal in the project folder, then:
+
+    npm run start:dashboard
+
+Wait until you see:
+    Angular Live Development Server is listening on localhost:4200
+
+STEP 3: Open the Application
+----------------------------
+
+Open your browser and go to: http://localhost:4200
+
+================================================================================
+                    PART 6: TESTING THE APPLICATION
+================================================================================
+
+DEMO LOGIN CREDENTIALS
+----------------------
+
+Role        Email                       Password        Access Level
+----        -----                       --------        ------------
+OWNER       owner@techcorp.com          Owner123!       All organizations, all tasks
+ADMIN       admin@engineering.com       Admin123!       Engineering org tasks
+ADMIN       admin@marketing.com         Admin123!       Marketing org tasks
+VIEWER      viewer@engineering.com      Viewer123!      Own tasks only
+
+TEST SCENARIOS
+--------------
+
+TEST 1: Login as Owner (Full Access)
+1. Go to http://localhost:4200
+2. Enter: owner@techcorp.com / Owner123!
+3. Click Login
+EXPECTED: See dashboard with ALL tasks from ALL organizations.
+
+TEST 2: Login as Admin (Department Access)
+1. Logout (click email then Logout)
+2. Login: admin@engineering.com / Admin123!
+EXPECTED: See only Engineering department tasks.
+
+TEST 3: Login as Viewer (Limited Access)
+1. Logout
+2. Login: viewer@engineering.com / Viewer123!
+EXPECTED: See only your own tasks. Cannot create/edit/delete.
+
+TEST 4: Create a Task
+1. Login as Admin or Owner
+2. Go to Tasks page
+3. Click "New Task"
+4. Fill in details and save
+
+TEST 5: Drag and Drop
+1. Login as Admin or Owner
+2. Go to Tasks page
+3. Switch to Kanban view
+4. Drag a task from "TODO" to "IN PROGRESS"
+
+TEST 6: Check Audit Log
+1. Login as Admin or Owner
+2. Click "Audit Log" in navigation
+3. See history of all actions
+
+================================================================================
+                         PART 7: API REFERENCE
+================================================================================
+
+AUTHENTICATION ENDPOINTS
+------------------------
+
+LOGIN:
+------
+POST /api/auth/login
+Content-Type: application/json
+
+Request Body:
+{
+  "email": "owner@techcorp.com",
+  "password": "Owner123!"
+}
+
+Response:
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "email": "owner@techcorp.com",
+    "role": "OWNER"
+  },
+  "expiresIn": 86400
+}
+
+REGISTER:
+---------
+POST /api/auth/register
+Content-Type: application/json
+
+Request Body:
+{
+  "email": "newuser@example.com",
+  "password": "Password123!",
+  "firstName": "New",
+  "lastName": "User"
+}
+
+TASK ENDPOINTS
+--------------
+
+All task endpoints require authentication. Include the JWT token:
+    Authorization: Bearer <your-token>
+
+GET ALL TASKS:
+    GET /api/tasks
+
+Query parameters:
+    status: TODO, IN_PROGRESS, DONE
+    priority: LOW, MEDIUM, HIGH, URGENT
+    category: WORK, PERSONAL, SHOPPING, HEALTH, OTHER
+    search: Search text
+    page: Page number (default: 1)
+    limit: Items per page (default: 20)
+
+CREATE TASK:
+    POST /api/tasks
+    Content-Type: application/json
+
+Request Body:
+{
+  "title": "New Task",
+  "description": "Task description",
+  "status": "TODO",
+  "priority": "HIGH",
+  "category": "WORK"
+}
+
+UPDATE TASK:
+    PUT /api/tasks/:taskId
+    Content-Type: application/json
+
+Request Body:
+{
+  "title": "Updated Title",
+  "status": "IN_PROGRESS"
+}
+
+DELETE TASK:
+    DELETE /api/tasks/:taskId
+
+AUDIT LOG ENDPOINTS
+-------------------
+
+GET AUDIT LOGS:
+    GET /api/audit
+
+Query parameters:
+    action: LOGIN, TASK_CREATED, TASK_UPDATED, etc.
+    resource: task, user, organization
+    page: Page number
+    limit: Items per page
+
+================================================================================
+                     PART 8: ACCESS CONTROL SYSTEM
+================================================================================
+
+ROLE HIERARCHY
+--------------
+
+OWNER (Level 3) - Highest access
+    |
+    v
+ADMIN (Level 2) - Department access
+    |
+    v
+VIEWER (Level 1) - Lowest access
+
+PERMISSION MATRIX
+-----------------
+
+Action                      OWNER       ADMIN       VIEWER
+------                      -----       -----       ------
+View all org tasks          YES         NO          NO
+View own org tasks          YES         YES         NO
+View own tasks              YES         YES         YES
+Create tasks                YES         YES         NO
+Edit tasks                  YES         YES         NO
+Delete tasks                YES         YES         NO
+View audit log              YES         YES         NO
+Manage users                YES         NO          NO
+Manage organizations        YES         NO          NO
+
+ORGANIZATION ACCESS RULES
+-------------------------
+
+TechCorp (Parent)
+    |
+    +-- Engineering (Child)
+    |
+    +-- Marketing (Child)
+
+ACCESS RULES:
+- TechCorp users can access: TechCorp + Engineering + Marketing
+- Engineering users can access: Engineering only
+- Marketing users can access: Marketing only
+- Engineering and Marketing cannot access each other (siblings)
+
+================================================================================
+                      PART 9: SYSTEM ARCHITECTURE
+================================================================================
+
+SYSTEM OVERVIEW
+---------------
+
+    BROWSER              BACKEND              DATABASE
+    (Angular)            (NestJS)             (SQLite)
+    localhost:4200  -->  localhost:3000  -->  data/app.db
+         |                    |
+         v                    v
+    TailwindCSS          TypeORM
+    Angular 17           JWT + Passport
+    Signals              bcrypt
+
+AUTHENTICATION FLOW
+-------------------
+
+Step 1: User enters email and password in frontend
+Step 2: Frontend sends POST /auth/login to backend
+Step 3: Backend looks up user by email in database
+Step 4: Database returns user data
+Step 5: Backend validates password using bcrypt.compare
+Step 6: Backend generates JWT token (contains userId, role, orgId)
+Step 7: Backend returns token + user info to frontend
+Step 8: Frontend stores token in localStorage
+Step 9: User is redirected to dashboard
+
+JWT TOKEN STRUCTURE
+-------------------
+
+Header:
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+
+Payload:
+{
+  "sub": "user-uuid",              (userId)
+  "email": "user@example.com",
+  "role": "ADMIN",
+  "organizationId": "org-uuid",
+  "iat": 1704067200,               (Issued at)
+  "exp": 1704153600                (Expires - 24 hours later)
+}
+
+Signature: (encrypted hash)
+
+REQUEST LIFECYCLE
+-----------------
+
+Every API request goes through this flow:
+
+Incoming Request
+      |
+      v
+CORS Check         (Allow requests from localhost:4200)
+      |
+      v
+Validation         (Validate request body with class-validator)
+      |
+      v
+JWT Guard          (Verify token is valid)
+      |
+      v
+Roles Guard        (Check user has required role)
+      |
+      v
+Controller         (Handle the request)
+      |
+      v
+Service            (Business logic)
+      |
+      v
+Repository         (Database operations)
+      |
+      v
+Audit Log          (Log the action)
+      |
+      v
+Response
+
+================================================================================
+                       PART 10: SECURITY LAYERS
+================================================================================
+
+LAYER 1: TRANSPORT
+------------------
+- HTTPS (in production)
+- CORS configuration
+- Request size limits
+
+LAYER 2: AUTHENTICATION
+-----------------------
+- JWT token verification
+- Token expiration (24 hours)
+- bcrypt password hashing (10 rounds)
+
+LAYER 3: AUTHORIZATION
+----------------------
+- Role-based access control (RBAC)
+- Organization-scoped access
+- Resource ownership checks
+
+LAYER 4: INPUT VALIDATION
+-------------------------
+- class-validator DTOs
+- Whitelist stripping
+- Type coercion
+
+LAYER 5: AUDIT TRAIL
+--------------------
+- All actions logged
+- User identification
+- Timestamp recording
+
+================================================================================
+                      PART 11: PROJECT STRUCTURE
+================================================================================
+
+vrajareddy-f2ce41a6-d3e4-4fb0-b1a9-c0fa91d6ecbc/
+|
++-- apps/
+|   +-- api/                          (Backend - NestJS)
+|   |   +-- src/
+|   |       +-- auth/                 (Authentication module)
+|   |       +-- tasks/                (Tasks module)
+|   |       +-- users/                (Users module)
+|   |       +-- organizations/        (Organizations module)
+|   |       +-- audit/                (Audit logging module)
+|   |       +-- entities/             (Database entities)
+|   |       +-- main.ts               (Application entry)
+|   |       +-- seed.ts               (Demo data script)
+|   |
+|   +-- dashboard/                    (Frontend - Angular)
+|       +-- src/
+|           +-- app/
+|               +-- core/             (Services, guards)
+|               +-- features/         (Pages - login, tasks, etc.)
+|
++-- libs/
+|   +-- data/                         (Shared interfaces and DTOs)
+|   |   +-- src/
+|   |       +-- interfaces/           (TypeScript interfaces)
+|   |       +-- dto/                  (Data Transfer Objects)
+|   |       +-- enums/                (Enumerations)
+|   |
+|   +-- auth/                         (Shared auth logic)
+|       +-- src/
+|           +-- decorators/           (Custom decorators)
+|           +-- guards/               (Auth guards)
+|           +-- strategies/           (JWT strategy)
+|
++-- data/                             (Database file - after seed)
++-- package.json                      (Dependencies)
++-- .env                              (Configuration)
++-- README.md                         (Documentation)
+
+================================================================================
+                        PART 12: TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "npm is not recognized"
+--------------------------------
+Cause: Node.js is not installed or not in PATH.
+Solution:
+1. Download Node.js from https://nodejs.org
+2. Install it
+3. Restart your computer
+4. Try again
+
+PROBLEM: "Port 3000 is already in use"
+--------------------------------------
+Cause: Another application is using port 3000.
+Solution:
+
+Windows - Find and kill the process:
+    netstat -ano | findstr :3000
+    taskkill /PID <PID> /F
+
+Mac/Linux:
+    lsof -i :3000
+    kill -9 <PID>
+
+PROBLEM: "Cannot find module" errors
+------------------------------------
+Cause: Dependencies not installed.
+Solution:
+    rm -rf node_modules
+    npm install
+
+PROBLEM: Login fails with valid credentials
+-------------------------------------------
+Cause: API server not running.
+Solution:
+1. Make sure "npm run start:api" is running
+2. Check terminal for errors
+3. Verify http://localhost:3000 is accessible
+
+PROBLEM: Database is empty
+--------------------------
+Cause: Seed script wasn't run.
+Solution:
+    npm run seed
+
+================================================================================
+                        QUICK REFERENCE COMMANDS
+================================================================================
+
+Command                     Description
+-------                     -----------
+npm install                 Install dependencies
+npm run seed                Create database with demo data
+npm run start:api           Start backend server
+npm run start:dashboard     Start frontend server
+npm run test:api            Run backend tests
+npm run test:dashboard      Run frontend tests
+
+================================================================================
+                              SUMMARY
+================================================================================
+
+This architecture provides:
+
+1. SECURITY - JWT auth, role-based access, audit logging
+2. SCALABILITY - Modular NestJS, TypeORM for database abstraction
+3. MAINTAINABILITY - Shared libraries, TypeScript, clear separation
+4. DEVELOPER EXPERIENCE - Hot reload, type safety, clear structure
+
+The system is designed to be production-ready with proper error handling,
+validation, and security measures.
+
+================================================================================
+                           END OF DOCUMENT
+================================================================================
